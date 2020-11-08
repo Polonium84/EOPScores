@@ -1,16 +1,22 @@
 #EOP网站曲谱下载
+#By Polonium
+#GitHub @Polonium84
+#---Python标准库---
 import os
-import requests
 import json
 import re
+#---Python第三方库---
+import requests
 from bs4 import BeautifulSoup
+#---EOPsites.py---
 import EOPsites
 
-Basepath=r'E:\EOPScores'
-finished=0
-total=0
-totalimg=0
-def main():
+Basepath=r'E:\EOPScores' #保存根目录
+finished=0               #下载完成数
+total=0                  #总任务数
+totalimg=0               #总下载图片数
+
+def main():#主函数
     print("请选择下载类型")
     print('0=流行 1=影视 2=经典 3=动漫 4=儿歌 5=练习曲 6=轻音乐 7=原创 8=民乐 9=其他')
     key=int(input())
@@ -20,7 +26,10 @@ def main():
         os.mkdir(Basepath)
     Basesite=EOPsites.SelectClass(key)
     ParseBasepage(Basesite)
-def AutoGet(url,**param):
+    print('=====下载完成=====')
+    input()
+
+def AutoGet(url,**param):#下载函数，失败后自动重试
     times=0
     while times<5:
         if param==None:
@@ -29,21 +38,18 @@ def AutoGet(url,**param):
                 return r
             except:
                 times+=1
-        else:
+        else:#有HTTP请求附加参数的情况下
             try:
                 r=requests.get(url,params=param,timeout=10)
                 return r
             except:
                 times+=1
-    raise('error')
-def ParseBasepage(Basesite):
+    raise('error')#尝试5次仍失败后抛出错误
+
+def ParseBasepage(Basesite):#解析主版块HTML源代码
     request=AutoGet(Basesite)
     HtmlText=re.sub('[\n\t]*','',request.text)
     HtmlContent=BeautifulSoup(HtmlText,features="html.parser")
-    #f=open(r'f:\EOPScores\base.html',encoding='utf-8')
-    #HtmlText=re.sub('[\n\t]*','',f.read())
-    #HtmlContent=BeautifulSoup(HtmlText)
-    #f.close()
     regex=re.findall(r'\'_self\'>(\d*)</a>',HtmlText)
     pagecount=int(regex[-1])
     tagpage=HtmlContent.find('div','row EOPMusicIndexPage')
@@ -56,7 +62,8 @@ def ParseBasepage(Basesite):
     for i in range(1,pagecount+1):
         print('-----开始下载第{}页-----'.format(i))
         ParseAnypage(Basesite,i)
-def ParseAnypage(site,page):
+
+def ParseAnypage(site,page):#解析每一页HTML源代码，一页10个曲谱
     #param={'p':page}
     request=AutoGet(site,p=page)
     HtmlText=re.sub('[\n\t]*','',request.text)
@@ -69,7 +76,6 @@ def ParseAnypage(site,page):
             s.title=i.contents[1].contents[3].string
             s.href=i.contents[1].contents[3]['href']
             s.artist=i.contents[1].contents[5].string
-            #s.img=i.contents[1].contents[1].contents[1].contents[1].contents[0]['src']
             s.descriptioin=i.contents[3].contents[1].contents[2]
             mode=str(i.contents[3].contents[1].contents[3])
             if 'stave' in mode:
@@ -77,26 +83,17 @@ def ParseAnypage(site,page):
             if 'num' in mode:
                 s.jian=True
         except:pass
-        #print(s.img)
         s.no=re.sub('^0*','',s.no_origin)
         s.href='https://www.everyonepiano.cn'+s.href
         s.descriptioin=s.descriptioin.replace(' ','')
-        #print('编号：{}'.format(s.no))
-        #print('标题：{}'.format(s.title))
-        #print('作者：{}'.format(s.artist))
-        #print('描述：{}'.format(s.descriptioin))
-        #print('网页链接：{}'.format(s.href))
-        #print('是否有五线谱：{}'.format(s.wuxian))
-        #print('是否有简谱：{}'.format(s.jian))
-        #print()
-        #SaveJSON(s)
         s=ParseScorepage(s)
         if s.available==True:
             SaveJSON(s)
             DownloadScore(s)
         else:
             print(s.no+'下载失败！')
-def SaveJSON(s):
+
+def SaveJSON(s):#保存该曲谱的基本信息
     DirPath=os.path.join(Basepath,s.title)
     if not os.path.exists(DirPath):
         try:
@@ -108,8 +105,8 @@ def SaveJSON(s):
     with open(JsonPath,'wt+',encoding='utf-8') as f:
         text=json.dumps(s,default=score.ToJSON,sort_keys=True)
         f.write(text)
-    #print('{}.json saved!'.format(s.no))
-def DownloadScore(s):
+
+def DownloadScore(s):#下载该歌曲的所有乐谱图片
     DirPath=os.path.join(Basepath,s.title)
     if not os.path.exists(DirPath):
         try:
@@ -143,10 +140,10 @@ def DownloadScore(s):
     s3='{:.2%}'.format(per).ljust(8)
     s4='\t共下载{:^9}张图片'.format(totalimg)
     print(s1+s2+s3+s4)
-def ParseScorepage(s):
+
+def ParseScorepage(s):#解析乐谱页面的HTML源代码
     r=AutoGet(s.href)
     HtmlText=re.sub('[\n\t]*','',r.text)
-    #HtmlContent=BeautifulSoup(HtmlText,features="html.parser")
     try:
         s.scoreserver=re.search(r'/pianomusic/(\d{3})/',HtmlText).group(1)
     except:
@@ -159,7 +156,8 @@ def ParseScorepage(s):
         try:s.jian_num=int(re.search(r'简谱预览 <small>\( 共(\d*)张 \)',HtmlText).group(1))
         except:pass
     return s
-class score:
+
+class score:#乐谱类，储存基本信息，并定义一个输出为json文本的函数
     no=''
     no_origin=''
     title=''
@@ -187,8 +185,7 @@ class score:
             'ScoreServer':self.scoreserver
             }
 
-if __name__=='__main__':
+if __name__=='__main__':#主程序入口
     main()
-    print('=====下载完成=====')
-    input()
+    
 
