@@ -10,8 +10,9 @@ import requests
 from bs4 import BeautifulSoup
 #---EOPsites.py---
 import EOPsites
-
-Basepath=r'E:\EOPScores' #保存根目录
+                         #----------------注意！Attention!-----------------#
+Basepath=r'E:\EOPScores' #保存根目录，程序不会创建此目录，运行前请确保目录存在 #
+                         #------------------------------------------------#
 finished=0               #下载完成数
 total=0                  #总任务数
 totalimg=0               #总下载图片数
